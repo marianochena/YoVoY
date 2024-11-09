@@ -1,0 +1,129 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+enum UserRole {
+  DRIVER
+  PASSENGER
+}
+
+enum TripStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  firstName     String
+  lastName      String
+  phoneNumber   String
+  dni           String    @unique
+  profileImage  String?
+  role          UserRole  @default(PASSENGER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  driverProfile Driver?
+  tripsAsDriver Trip[]    @relation("DriverTrips")
+  bookings      Booking[]
+  reviewsGiven  Review[]  @relation("ReviewGiver")
+  reviewsReceived Review[] @relation("ReviewReceiver")
+}
+
+model Driver {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  licenseNumber   String   @unique
+  carModel        String
+  carYear         Int
+  carPlate        String   @unique
+  carColor        String
+  maxPassengers   Int
+  verified        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  user            User     @relation(fields: [userId], references: [id])
+  trips           Trip[]
+}
+
+model Trip {
+  id              String      @id @default(uuid())
+  driverId        String
+  originCity      String
+  destinationCity String
+  departureDate   DateTime
+  estimatedArrival DateTime
+  availableSeats  Int
+  pricePerSeat    Decimal    @db.Decimal(10,2)
+  status          TripStatus @default(PENDING)
+  description     String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // Relations
+  driver          User       @relation("DriverTrips", fields: [driverId], references: [id])
+  bookings        Booking[]
+  stops           TripStop[]
+}
+
+model TripStop {
+  id              String    @id @default(uuid())
+  tripId          String
+  city            String
+  estimatedTime   DateTime
+  order           Int
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  trip            Trip      @relation(fields: [tripId], references: [id])
+}
+
+model Booking {
+  id              String        @id @default(uuid())
+  tripId          String
+  passengerId     String
+  seats           Int
+  totalPrice      Decimal      @db.Decimal(10,2)
+  status          BookingStatus @default(PENDING)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  trip            Trip         @relation(fields: [tripId], references: [id])
+  passenger       User         @relation(fields: [passengerId], references: [id])
+}
+
+model Review {
+  id              String    @id @default(uuid())
+  giverId         String
+  receiverId      String
+  rating          Int       @db.SmallInt
+  comment         String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  giver           User      @relation("ReviewGiver", fields: [giverId], references: [id])
+  receiver        User      @relation("ReviewReceiver", fields: [receiverId], references: [id])
+}
